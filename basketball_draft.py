@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import random
 
-st.set_page_config(page_title="Basketball Team Draft Tool", layout="centered")
+st.set_page_config(page_title="Karnival Sukan Lakefront Basketball Team Draft Tool", layout="centered")
 
-st.title("🏀 Basketball Team Draft Tool")
+st.title("🏀 Karnival Sukan Lakefront Basketball Team Draft Tool")
 
 # --- Helper: Calculate skill score from Google Form answers ---
 def calculate_score(row):
@@ -118,4 +118,4 @@ if uploaded_file:
             st.subheader("🏆 Drafted Teams")
             for i, team in enumerate(st.session_state.teams, 1):
                 st.markdown(f"### Team {i}")
-                st.table(pd.DataFrame(team)[["Name", "Tier"]]))
+                st.table(pd.DataFrame(team)[["Name", "Tier"]])
