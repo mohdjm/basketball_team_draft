@@ -1,112 +1,121 @@
 import streamlit as st
-import random
 import pandas as pd
-from io import StringIO
+import random
 
-st.set_page_config(page_title="Basketball Team Draft", layout="centered")
+st.set_page_config(page_title="Basketball Team Draft Tool", layout="centered")
 
-st.title("🏀 Karnival Sukan Lakefront Basketball Team Draft Tool")
+st.title("🏀 Basketball Team Draft Tool")
 
-# --- Sample Data ---
-sample_players = [
-	{"name": "Ali", "skill": 3, "type": "Regular"},
-	{"name": "Bala", "skill": 2, "type": "Newcomer"},
-	{"name": "Chong", "skill": 1, "type": "Regular"},
-	{"name": "David", "skill": 4, "type": "Regular"},
-	{"name": "Eric", "skill": 2, "type": "Newcomer"},
-	{"name": "Faiz", "skill": 3, "type": "Regular"},
-	{"name": "Ganesh", "skill": 2, "type": "Regular"},
-	{"name": "Hafiz", "skill": 1, "type": "Newcomer"},
-	{"name": "Isa", "skill": 4, "type": "Regular"},
-	{"name": "Jaya", "skill": 3, "type": "Regular"},
-	{"name": "Kevin", "skill": 2, "type": "Newcomer"},
-	{"name": "Lim", "skill": 1, "type": "Regular"},
-	{"name": "Mani", "skill": 4, "type": "Regular"},
-	{"name": "Nash", "skill": 3, "type": "Regular"},
-	{"name": "Omar", "skill": 2, "type": "Newcomer"},
-]
+# --- Helper: Calculate skill score from Google Form answers ---
+def calculate_score(row):
+    score = 0
 
-# --- Player Entry Section ---
-st.subheader("Add or Upload Players")
+    # Scoring maps
+    q1_map = {
+        "Few times a week": 3,
+        "Every week": 2,
+        "Once every two weeks": 1,
+        "Once a month or less": 0
+    }
 
-with st.expander("➕ Add Players Manually"):
-	name = st.text_input("Player Name")
-	skill = st.slider("Skill Tier (1 - Beginner to 4 - Advanced)", 1, 4, 2)
-	ptype = st.selectbox("Player Type", ["Regular", "Newcomer"])
-	if st.button("Add Player"):
-		sample_players.append({"name": name, "skill": skill, "type": ptype})
-		st.success(f"Added {name} to the player list.")
+    q2_map = {
+        "Played in MABA/NCBL": 3,
+        "Played for school/uni team": 2,
+        "Casual player only": 1,
+        "Just starting / no experience": 0
+    }
 
-with st.expander("📂 Upload CSV (Optional)"):
-	uploaded_file = st.file_uploader("Upload CSV with columns: name,skill,type", type="csv")
-	if uploaded_file:
-		df_upload = pd.read_csv(uploaded_file)
-		for _, row in df_upload.iterrows():
-			sample_players.append({
-				"name": row["name"],
-				"skill": int(row["skill"]),
-				"type": row["type"]
-			})
-		st.success("Uploaded and added players from CSV.")
+    q3_map = {
+        "Scorer / Shot creator": 2,
+        "Rebounder / Defender / Hustler": 1,
+        "Mostly off-ball / learning": 0
+    }
 
-players_df = pd.DataFrame(sample_players)
+    q4_map = {
+        "Very confident": 2,
+        "Somewhat comfortable": 1,
+        "Not sure / Often confused": 0
+    }
 
-st.markdown("### 🧍 Registered Players")
-st.dataframe(players_df, use_container_width=True)
+    q5_map = {
+        "Can beat defenders or create shots": 2,
+        "Can drive or shoot in rhythm": 1,
+        "Rarely score / prefer passing": 0
+    }
 
-# --- Draft Configuration ---
-st.sidebar.header("⚙️ Draft Settings")
-num_teams = st.sidebar.number_input("Number of Teams", min_value=2, value=4, step=1)
-draft_mode = st.sidebar.radio("Draft Mode", ["Random Draft", "Balanced Draft"])
-shuffle_btn = st.sidebar.button("🔄 Draft Teams")
+    score += q1_map.get(row["Q1_How_often"], 0)
+    score += q2_map.get(row["Q2_Level"], 0)
+    score += q3_map.get(row["Q3_Self_role"], 0)
+    score += q4_map.get(row["Q4_Confidence"], 0)
+    score += q5_map.get(row["Q5_Offense"], 0)
 
+    return score
 
-# --- Drafting Logic ---
-def draft_random(players, num_teams):
-	random.shuffle(players)
-	teams = [[] for _ in range(num_teams)]
-	for idx, player in enumerate(players):
-		teams[idx % num_teams].append(player)
-	return teams
+# --- Helper: Convert score to tier ---
+def score_to_tier(score):
+    if score >= 10:
+        return 1
+    elif score >= 7:
+        return 2
+    elif score >= 4:
+        return 3
+    else:
+        return 4
 
+# --- Helper: Draft Balanced Teams ---
+def draft_balanced_teams(df, num_teams):
+    players = df.to_dict("records")
+    players.sort(key=lambda x: x["Tier"])  # sort by tier for better balance
+    random.shuffle(players)  # shuffle to avoid predictable pattern
 
-def draft_balanced(players, num_teams):
-	sorted_players = sorted(players, key=lambda x: x["skill"], reverse=True)
-	teams = [[] for _ in range(num_teams)]
-	team_skills = [0] * num_teams
+    teams = [[] for _ in range(num_teams)]
+    for i, player in enumerate(players):
+        teams[i % num_teams].append(player)
 
-	for player in sorted_players:
-		min_team = team_skills.index(min(team_skills))
-		teams[min_team].append(player)
-		team_skills[min_team] += player["skill"]
+    return teams
 
-	return teams
+# --- Upload CSV section ---
+uploaded_file = st.file_uploader("Upload Google Form Responses (.csv)", type="csv")
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
 
+    if "Name" not in df.columns:
+        st.error("CSV must include a 'Name' column.")
+    else:
+        # Calculate scores and tiers
+        df["Score"] = df.apply(calculate_score, axis=1)
+        df["Tier"] = df["Score"].apply(score_to_tier)
 
-# --- Show Draft Results ---
-if shuffle_btn:
-	st.subheader("🏆 Drafted Teams")
-	players_copy = sample_players.copy()
+        st.subheader("📋 Player List with Tiers")
+        st.dataframe(df[["Name", "Score", "Tier"]])
 
-	if draft_mode == "Random Draft":
-		team_list = draft_random(players_copy, num_teams)
-	else:
-		team_list = draft_balanced(players_copy, num_teams)
+        # Team selection
+        num_teams = st.number_input("Number of Teams", min_value=2, max_value=12, value=4, step=1)
 
-	team_outputs = []
-	for i, team in enumerate(team_list):
-		st.markdown(f"### 🟦 Team {i + 1}")
-		team_df = pd.DataFrame(team)
-		st.dataframe(team_df, use_container_width=True)
-		output_text = f"Team {i + 1}:\n" + "\n".join(
-			f"- {p['name']} (Skill: {p['skill']}, {p['type']})" for p in team
-		)
-		team_outputs.append(output_text)
+        # Init session state
+        if "teams" not in st.session_state:
+            st.session_state.teams = []
 
-	all_output = "\n\n".join(team_outputs)
+        # Draft buttons
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("🚀 Draft Teams"):
+                st.session_state.teams = draft_balanced_teams(df, num_teams)
+                st.success("Teams drafted!")
 
-	with st.expander("📋 Copyable Draft Result"):
-		st.text_area("Copy & Share", all_output, height=300)
+        with col2:
+            if st.button("🔁 Re-Draft Teams"):
+                st.session_state.teams = draft_balanced_teams(df, num_teams)
+                st.success("Teams re-drafted!")
 
-	st.download_button("📄 Download Teams as TXT", all_output, file_name="drafted_teams.txt")
+        with col3:
+            if st.button("🧹 Reset Draft"):
+                st.session_state.teams = []
+                st.warning("Teams have been reset.")
 
+        # Display teams if available
+        if st.session_state.teams:
+            st.subheader("🏆 Drafted Teams")
+            for i, team in enumerate(st.session_state.teams, 1):
+                st.markdown(f"### Team {i}")
+                st.table(pd.DataFrame(team)[["Name", "Tier"]]))
