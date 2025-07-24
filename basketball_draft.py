@@ -99,16 +99,12 @@ if uploaded_file:
         if "teams" not in st.session_state:
             st.session_state.teams = []
 
-        # After df is created and score/tier are added
-        df["Score"] = df.apply(calculate_score, axis=1)
-        df["Tier"] = df["Score"].apply(score_to_tier)
+         
 
         st.subheader("📋 Player List with Tiers")
         st.dataframe(df[["Name", "Score", "Tier"]])
 
-        # Team selection
-        num_teams = st.number_input("Number of Teams", min_value=2, max_value=12, value=4, step=1)
-
+        
         # --- Captain Selection (safe here since df is defined) ---
         st.sidebar.subheader("Select Team Captains")
         all_player_names = df["Name"].tolist()
