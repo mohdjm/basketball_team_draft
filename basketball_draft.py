@@ -96,26 +96,58 @@ if uploaded_file:
         if "teams" not in st.session_state:
             st.session_state.teams = []
 
-        # Draft buttons
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("🚀 Draft Teams"):
-                st.session_state.teams = draft_balanced_teams(df, num_teams)
-                st.success("Teams drafted!")
+        # --- Captain Selection ---
+st.sidebar.subheader("Select Team Captains")
+all_player_names = df["Name"].tolist()
+captain_names = st.sidebar.multiselect(
+    "Choose one captain per team:",
+    options=all_player_names,
+    max_selections=num_teams
+)
 
-        with col2:
-            if st.button("🔁 Re-Draft Teams"):
-                st.session_state.teams = draft_balanced_teams(df, num_teams)
-                st.success("Teams re-drafted!")
+# Draft buttons
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("🚀 Draft Teams"):
+        if len(captain_names) != num_teams:
+            st.error(f"Please select exactly {num_teams} captains in the sidebar.")
+        else:
+            captains_df = df[df["Name"].isin(captain_names)]
+            remaining_df = df[~df["Name"].isin(captain_names)]
 
-        with col3:
-            if st.button("🧹 Reset Draft"):
-                st.session_state.teams = []
-                st.warning("Teams have been reset.")
+            # Shuffle captains and assign 1 per team
+            captains_df = captains_df.sample(frac=1, random_state=42).reset_index(drop=True)
+            teams = [[] for _ in range(num_teams)]
+            for i, captain in enumerate(captains_df.itertuples(index=False)):
+                teams[i].append({"Name": captain.Name, "Tier": captain.Tier, "Captain": True})
+
+            # Shuffle remaining and assign to teams by tier
+            remaining_players = remaining_df.sample(frac=1, random_state=42).sort_values("Tier").reset_index(drop=True)
+            for i, player in enumerate(remaining_players.itertuples(index=False)):
+                teams[i % num_teams].append({"Name": player.Name, "Tier": player.Tier})
+
+            st.session_state.teams = teams
+            st.success("Teams drafted with selected captains!")
+
+with col2:
+    if st.button("🔁 Re-Draft Teams"):
+        st.session_state.teams = draft_balanced_teams(df, num_teams)
+        st.success("Teams re-drafted (random captains).")
+
+with col3:
+    if st.button("🧹 Reset Draft"):
+        st.session_state.teams = []
+        st.warning("Teams have been reset.")
+
 
         # Display teams if available
-        if st.session_state.teams:
-            st.subheader("🏆 Drafted Teams")
-            for i, team in enumerate(st.session_state.teams, 1):
-                st.markdown(f"### Team {i}")
-                st.table(pd.DataFrame(team)[["Name", "Tier"]])
+if st.session_state.teams:
+    st.subheader("🏆 Drafted Teams")
+    for i, team in enumerate(st.session_state.teams, 1):
+        st.markdown(f"### Team {i}")
+        team_df = pd.DataFrame(team)
+        if "Captain" in team_df.columns:
+            team_df["Captain"] = team_df["Captain"].fillna(False)
+            team_df["Name"] = team_df.apply(lambda row: f"⭐ {row['Name']}" if row["Captain"] else row["Name"], axis=1)
+            team_df.drop(columns="Captain", inplace=True)
+        st.table(team_df[["Name", "Tier"]])
