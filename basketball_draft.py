@@ -39,3 +39,42 @@ elif input_mode == "Manual Entry":
 if input_mode == "Manual Entry" and df is not None and not df.empty:
     csv_data = df.to_csv(index=False).encode("utf-8")
     st.download_button("Download Player List as CSV", csv_data, file_name="manual_players.csv")
+
+# Combine both manual and uploaded players
+if uploaded_df is not None and not uploaded_df.empty:
+    full_df = pd.concat([uploaded_df, manual_players_df], ignore_index=True)
+else:
+    full_df = manual_players_df.copy()
+
+# Proceed only if we have at least 2 players
+if not full_df.empty and len(full_df) >= 2:
+
+    st.subheader("3️⃣ Draft Teams")
+
+    num_teams = st.number_input("Number of Teams", min_value=2, max_value=len(full_df), value=4, step=1)
+
+    if st.button("Draft Teams"):
+        # Initialize teams
+        teams = [[] for _ in range(num_teams)]
+        tier_groups = full_df.groupby("Tier")
+
+        # Distribute players tier by tier
+        for tier, group in tier_groups:
+            players = group.sample(frac=1).to_dict(orient="records")  # Shuffle
+            for idx, player in enumerate(players):
+                team_idx = idx % num_teams
+                teams[team_idx].append(player)
+
+        st.session_state.teams = teams
+
+    # Display the drafted teams
+    if "teams" in st.session_state:
+        st.subheader("🧢 Drafted Teams")
+        for idx, team in enumerate(st.session_state.teams):
+            st.markdown(f"### Team {idx + 1}")
+            for player in team:
+                st.write(f"{player['Name']} - Tier {player['Tier']}")
+
+        if st.button("Reset Teams"):
+            del st.session_state.teams
+
