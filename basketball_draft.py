@@ -1,6 +1,10 @@
 import streamlit as st
 import pandas as pd
 
+st.set_page_config(page_title="Basketball Team Draft", layout="centered")
+st.title("🏀 Basketball Team Draft App")
+st.markdown("This app helps you draft fair and balanced teams for your 4v4 basketball tournament (with 1 sub per team).")
+
 # Initialize session state
 if "manual_players" not in st.session_state:
     st.session_state.manual_players = []
