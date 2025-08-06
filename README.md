@@ -18,6 +18,7 @@ I started learning Python less than a month ago and decided to turn this local e
 
 - ✅ Upload player data from a **Google Form (CSV)**
 - 🧠 Automatically assigns **skill tiers (1–4)** based on questionnaire scoring
+- NEW FEATURE - manually add players and assign a tier.
 - ⚖️ Drafts **balanced teams** using skill tier totals
 - ⭐ Optional: **Manual captain selection** via sidebar
 - 🔁 Supports **re-drafting** or **resetting**
@@ -80,3 +81,4 @@ Feel free to reach out via [LinkedIn](https://www.linkedin.com/in/danial-jaafar-
 ## 🧠 Shoutout
 
 Special thanks to **ChatGPT** – this would’ve been 10x harder without it.
+
